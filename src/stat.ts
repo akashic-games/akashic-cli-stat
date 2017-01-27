@@ -2,10 +2,17 @@ import * as fs from "fs";
 import * as path from "path";
 import { Logger, GameConfiguration } from "@akashic/akashic-cli-commons";
 
+enum FileType {
+	Ogg,
+	Mp4,
+	Aac
+}
+
 class SizeResult {
 	imageSize: number;
 	textSize: number;
 	oggAudioSize: number;
+	mp4AudioSize: number;
 	aacAudioSize: number;
 	scriptSize: number;
 	otherSize: number;
@@ -15,6 +22,7 @@ class SizeResult {
 		this.imageSize = 0;
 		this.textSize = 0;
 		this.oggAudioSize = 0;
+		this.mp4AudioSize = 0;
 		this.aacAudioSize = 0;
 		this.scriptSize = 0;
 		this.otherSize = 0;
@@ -29,6 +37,11 @@ class SizeResult {
 	totalSizeAac(): number {
 		return this.imageSize + this.textSize +
 			this.aacAudioSize + this.scriptSize + this.otherSize;
+	}
+
+	totalSizeMp4(): number {
+		return this.imageSize + this.textSize +
+			this.mp4AudioSize + this.scriptSize + this.otherSize;
 	}
 
 	sumOfTable(): number {
@@ -60,20 +73,41 @@ export function size(param: StatSizeParameterObject): Promise<void> {
  * サイズの計測結果を表示する
  */
 function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void {
-	const oggIsLarger = sizeResult.oggAudioSize > sizeResult.aacAudioSize;
-	const totalSize = oggIsLarger ? sizeResult.totalSizeOgg() : sizeResult.totalSizeAac();
+	let largestFileType: FileType;
+	if (sizeResult.oggAudioSize > sizeResult.aacAudioSize && sizeResult.oggAudioSize > sizeResult.mp4AudioSize) {
+		largestFileType = FileType.Ogg;
+	} else if (sizeResult.mp4AudioSize > sizeResult.aacAudioSize) {
+		largestFileType = FileType.Mp4;
+	} else {
+		largestFileType = FileType.Aac;
+	}
+
+	const totalSize = largestFileType === FileType.Ogg ? sizeResult.totalSizeOgg() :
+		largestFileType === FileType.Mp4 ? sizeResult.totalSizeMp4() : sizeResult.totalSizeAac();
+
 	if (!param.raw) {
 		const persent = (value: number) => (value / totalSize * 100).toFixed(0);
 		const formatSize = (name: string, size: number) => `${name}: ${sizeToString(size)} (${persent(size)}%)`;
 		param.logger.print(formatSize("image", sizeResult.imageSize));
 		param.logger.print(formatSize("text", sizeResult.textSize));
-		if (oggIsLarger) {
-			param.logger.print(formatSize("ogg audio", sizeResult.oggAudioSize));
-			param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
-		} else {
-			param.logger.print(`ogg audio: ${sizeToString(sizeResult.oggAudioSize)}`);
-			param.logger.print(formatSize("aac audio", sizeResult.aacAudioSize));
+
+		switch (largestFileType) {
+			case FileType.Ogg:
+				param.logger.print(formatSize("ogg audio", sizeResult.oggAudioSize));
+				param.logger.print(`mp4 audio: ${sizeToString(sizeResult.mp4AudioSize)}`);
+				param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
+				break;
+			case FileType.Mp4:
+				param.logger.print(`ogg audio: ${sizeToString(sizeResult.oggAudioSize)}`);
+				param.logger.print(formatSize("mp4 audio", sizeResult.mp4AudioSize));
+				param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
+				break;
+			default:
+				param.logger.print(`ogg audio: ${sizeToString(sizeResult.oggAudioSize)}`);
+				param.logger.print(`mp4 audio: ${sizeToString(sizeResult.mp4AudioSize)}`);
+				param.logger.print(formatSize("aac audio", sizeResult.aacAudioSize));
 		}
+
 		param.logger.print(formatSize("script", sizeResult.scriptSize));
 		param.logger.print(formatSize("other", sizeResult.otherSize));
 		Object.keys(sizeResult.otherDetail).forEach(key =>
@@ -81,12 +115,17 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 		);
 		const mark = (enabled: boolean) => enabled ? "[*]" : "[ ]";
 		param.logger.print(
-			`${mark(oggIsLarger)} TOTAL SIZE (using ogg): ` +
+			`${mark(largestFileType === FileType.Ogg)} TOTAL SIZE (using ogg): ` +
 			sizeToString(sizeResult.totalSizeOgg()) +
 			` (${sizeResult.totalSizeOgg()}B)`
 		);
 		param.logger.print(
-			`${mark(!oggIsLarger)} TOTAL SIZE (using aac): ` +
+			`${mark(largestFileType === FileType.Mp4)} TOTAL SIZE (using mp4): ` +
+			sizeToString(sizeResult.totalSizeMp4()) +
+			` (${sizeResult.totalSizeMp4()}B)`
+		);
+		param.logger.print(
+			`${mark(largestFileType === FileType.Aac)} TOTAL SIZE (using aac): ` +
 			sizeToString(sizeResult.totalSizeAac()) +
 			` (${sizeResult.totalSizeAac()}B)`
 		);
@@ -107,7 +146,7 @@ function checkLimit(param: StatSizeParameterObject, sizeResult: SizeResult): Pro
 		return Promise.reject("cannot parse limit size value");
 	}
 
-	const actualSize = Math.max(sizeResult.totalSizeOgg(), sizeResult.totalSizeAac());
+	const actualSize = Math.max(sizeResult.totalSizeOgg(), sizeResult.totalSizeMp4(), sizeResult.totalSizeAac());
 	if (actualSize > limitSize) {
 		return Promise.reject(`file size limit exceeded (${sizeToString(actualSize - limitSize)})`);
 	}
@@ -154,6 +193,8 @@ function sizeOfAssets(param: StatSizeParameterObject, sizeResult: SizeResult): P
 			case "audio":
 				return fileSize(path.join(param.basepath, asset.path + ".ogg"))
 					.then(size => { sizeResult.oggAudioSize += size; })
+					.then(() => fileSize(path.join(param.basepath, asset.path + ".mp4")))
+					.then(size => { sizeResult.mp4AudioSize += size; })
 					.then(() => fileSize(path.join(param.basepath, asset.path + ".aac")))
 					.then(size => { sizeResult.aacAudioSize += size; });
 			default:
