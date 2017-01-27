@@ -119,11 +119,13 @@ describe("format stat result", () => {
 		"image: 144B (2%)\n" +
 		"text: 0B (0%)\n" +
 		"ogg audio: 7.45KB (88%)\n" +
+		"mp4 audio: 5.31KB\n" +
 		"aac audio: 4.16KB\n" +
 		"script: 494B (6%)\n" +
 		"other: 367B (4%)\n" +
 		"  game.json: 367B\n" +
 		"[*] TOTAL SIZE (using ogg): 8.43KB (8632B)\n" +
+		"[ ] TOTAL SIZE (using mp4): 6.29KB (6443B)\n" +
 		"[ ] TOTAL SIZE (using aac): 5.14KB (5267B)\n";
 
 	it("will output following text", done => {
