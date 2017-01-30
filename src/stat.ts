@@ -110,6 +110,9 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 
 		param.logger.print(formatSize("script", sizeResult.scriptSize));
 		param.logger.print(formatSize("other", sizeResult.otherSize));
+
+		if (largestFileType === FileType.Aac) param.logger.print("[deprecated] AAC is deprecated. Use MP4 instead.");
+
 		Object.keys(sizeResult.otherDetail).forEach(key =>
 			param.logger.print(`  ${key}: ${sizeToString(sizeResult.otherDetail[key])}`)
 		);
