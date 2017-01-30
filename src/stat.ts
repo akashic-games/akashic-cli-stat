@@ -112,8 +112,6 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 		param.logger.print(formatSize("script", sizeResult.scriptSize));
 		param.logger.print(formatSize("other", sizeResult.otherSize));
 
-		if (sizeResult.aacAudioSize > 0) param.logger.warn("AAC is deprecated. Use MP4 instead.");
-
 		Object.keys(sizeResult.otherDetail).forEach(key =>
 			param.logger.print(`  ${key}: ${sizeToString(sizeResult.otherDetail[key])}`)
 		);
@@ -133,6 +131,8 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 			sizeToString(sizeResult.totalSizeAac()) +
 			` (${sizeResult.totalSizeAac()}B)`
 		);
+
+		if (sizeResult.aacAudioSize > 0) param.logger.warn("AAC is deprecated. Use MP4 instead.");
 	} else {
 		param.logger.print(totalSize.toString());
 	}
@@ -196,11 +196,17 @@ function sizeOfAssets(param: StatSizeParameterObject, sizeResult: SizeResult): P
 					.then(size => { sizeResult.scriptSize += size; });
 			case "audio":
 				return fileSize(path.join(param.basepath, asset.path + ".ogg"))
-					.then(size => { sizeResult.oggAudioSize += size; })
+					.then(
+						size => { sizeResult.oggAudioSize += size; },
+						() => { if (!param.raw) param.logger.warn(asset + ".ogg, No such file."); })
 					.then(() => fileSize(path.join(param.basepath, asset.path + ".mp4")))
-					.then(size => { sizeResult.mp4AudioSize += size; })
+					.then(
+						size => { sizeResult.mp4AudioSize += size; },
+						() => {if (!param.raw) param.logger.warn(asset + ".aac, No such file."); })
 					.then(() => fileSize(path.join(param.basepath, asset.path + ".aac")))
-					.then(size => { sizeResult.aacAudioSize += size; });
+					.then(
+						size => { sizeResult.aacAudioSize += size; },
+						() => {if (!param.raw) param.logger.warn(asset + ".mp4, No such file."); });
 			default:
 				throw new Error(`${asset.type} is not a valid asset type name`);
 		}
