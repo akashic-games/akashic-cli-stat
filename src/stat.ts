@@ -74,16 +74,17 @@ export function size(param: StatSizeParameterObject): Promise<void> {
  */
 function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void {
 	let largestFileType: FileType;
+	let totalSize: number;
 	if (sizeResult.oggAudioSize > sizeResult.aacAudioSize && sizeResult.oggAudioSize > sizeResult.mp4AudioSize) {
 		largestFileType = FileType.Ogg;
+		totalSize = sizeResult.totalSizeOgg();
 	} else if (sizeResult.mp4AudioSize > sizeResult.aacAudioSize) {
 		largestFileType = FileType.Mp4;
+		totalSize = sizeResult.totalSizeMp4();
 	} else {
 		largestFileType = FileType.Aac;
+		totalSize = sizeResult.totalSizeAac();
 	}
-
-	const totalSize = largestFileType === FileType.Ogg ? sizeResult.totalSizeOgg() :
-		largestFileType === FileType.Mp4 ? sizeResult.totalSizeMp4() : sizeResult.totalSizeAac();
 
 	if (!param.raw) {
 		const persent = (value: number) => (value / totalSize * 100).toFixed(0);
@@ -111,7 +112,7 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 		param.logger.print(formatSize("script", sizeResult.scriptSize));
 		param.logger.print(formatSize("other", sizeResult.otherSize));
 
-		if (largestFileType === FileType.Aac) param.logger.print("[deprecated] AAC is deprecated. Use MP4 instead.");
+		if (sizeResult.aacAudioSize > 0) param.logger.warn("AAC is deprecated. Use MP4 instead.");
 
 		Object.keys(sizeResult.otherDetail).forEach(key =>
 			param.logger.print(`  ${key}: ${sizeToString(sizeResult.otherDetail[key])}`)
