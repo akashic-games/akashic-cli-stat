@@ -103,10 +103,13 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 				param.logger.print(formatSize("mp4 audio", sizeResult.mp4AudioSize));
 				param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
 				break;
-			default:
+			case FileType.Aac:
 				param.logger.print(`ogg audio: ${sizeToString(sizeResult.oggAudioSize)}`);
 				param.logger.print(`mp4 audio: ${sizeToString(sizeResult.mp4AudioSize)}`);
 				param.logger.print(formatSize("aac audio", sizeResult.aacAudioSize));
+				break;
+			default:
+				throw new Error("Audio file size retrieve failed.");
 		}
 
 		param.logger.print(formatSize("script", sizeResult.scriptSize));
