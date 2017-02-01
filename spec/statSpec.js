@@ -127,7 +127,7 @@ describe("format stat result", () => {
 		"[*] TOTAL SIZE (using ogg): 8.43KB (8632B)\n" +
 		"[ ] TOTAL SIZE (using mp4): 6.29KB (6443B)\n" +
 		"[ ] TOTAL SIZE (using aac): 5.14KB (5267B)\n" +
-		"WARN: AAC is deprecated. Use MP4 instead.\n";
+		"WARN: AAC (.aac) is deprecated. Use MP4(AAC) (.mp4) instead.\n";
 
 	it("will output following text", done => {
 		let buffer = "";
@@ -156,12 +156,38 @@ describe("format stat result - maximum mp4", () => {
 		"[ ] TOTAL SIZE (using ogg): 7.61KB (7795B)\n" +
 		"[*] TOTAL SIZE (using mp4): 9.48KB (9704B)\n" +
 		"[ ] TOTAL SIZE (using aac): 4.33KB (4430B)\n" +
-		"WARN: AAC is deprecated. Use MP4 instead.\n";
+		"WARN: AAC (.aac) is deprecated. Use MP4(AAC) (.mp4) instead.\n";
 
 	it("will output following text", done => {
 		let buffer = "";
 		const logger = new commons.ConsoleLogger({ quiet: true, debugLogMethod: msg => { buffer += msg + "\n"; } });
 		const basepath = path.join(__dirname, "fixtures", "dummyGame4");
+		return commons.ConfigurationFile.read(
+			path.join(basepath, "game.json"),
+			logger
+		)
+			.then(game => stat.size({ logger, basepath, game, raw: false }))
+			.then(() => { expect(buffer).toBe(expectedText); })
+			.then(done, done.fail);
+	});
+});
+
+describe("format stat result - drop AAC", () => {
+	const expectedText =
+		"image: 144B (2%)\n" +
+		"text: 0B (0%)\n" +
+		"ogg audio: 7.45KB (88%)\n" +
+		"mp4 audio: 5.31KB\n" +
+		"script: 494B (6%)\n" +
+		"other: 367B (4%)\n" +
+		"  game.json: 367B\n" +
+		"[*] TOTAL SIZE (using ogg): 8.43KB (8632B)\n" +
+		"[ ] TOTAL SIZE (using mp4): 6.29KB (6443B)\n";
+
+	it("will output following text", done => {
+		let buffer = "";
+		const logger = new commons.ConsoleLogger({ debugLogMethod: msg => { buffer += msg + "\n"; } });
+		const basepath = path.join(__dirname, "fixtures", "dummyGame5");
 		return commons.ConfigurationFile.read(
 			path.join(basepath, "game.json"),
 			logger
