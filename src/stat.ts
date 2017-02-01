@@ -96,17 +96,17 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 			case FileType.Ogg:
 				param.logger.print(formatSize("ogg audio", sizeResult.oggAudioSize));
 				param.logger.print(`mp4 audio: ${sizeToString(sizeResult.mp4AudioSize)}`);
-				param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
+				if (sizeResult.aacAudioSize > 0) param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
 				break;
 			case FileType.Mp4:
 				param.logger.print(`ogg audio: ${sizeToString(sizeResult.oggAudioSize)}`);
 				param.logger.print(formatSize("mp4 audio", sizeResult.mp4AudioSize));
-				param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
+				if (sizeResult.aacAudioSize > 0) param.logger.print(`aac audio: ${sizeToString(sizeResult.aacAudioSize)}`);
 				break;
 			case FileType.Aac:
 				param.logger.print(`ogg audio: ${sizeToString(sizeResult.oggAudioSize)}`);
 				param.logger.print(`mp4 audio: ${sizeToString(sizeResult.mp4AudioSize)}`);
-				param.logger.print(formatSize("aac audio", sizeResult.aacAudioSize));
+				if (sizeResult.aacAudioSize > 0) param.logger.print(formatSize("aac audio", sizeResult.aacAudioSize));
 				break;
 			default:
 				throw new Error("Audio file size retrieve failed.");
@@ -129,13 +129,14 @@ function showSize(param: StatSizeParameterObject, sizeResult: SizeResult): void 
 			sizeToString(sizeResult.totalSizeMp4()) +
 			` (${sizeResult.totalSizeMp4()}B)`
 		);
-		param.logger.print(
-			`${mark(largestFileType === FileType.Aac)} TOTAL SIZE (using aac): ` +
-			sizeToString(sizeResult.totalSizeAac()) +
-			` (${sizeResult.totalSizeAac()}B)`
-		);
-
-		if (sizeResult.aacAudioSize > 0) param.logger.warn("AAC is deprecated. Use MP4 instead.");
+		if (sizeResult.aacAudioSize > 0) {
+			param.logger.print(
+				`${mark(largestFileType === FileType.Aac)} TOTAL SIZE (using aac): ` +
+				sizeToString(sizeResult.totalSizeAac()) +
+				` (${sizeResult.totalSizeAac()}B)`
+			);
+			param.logger.warn("AAC (.aac) is deprecated. Use MP4(AAC) (.mp4) instead.");
+		}
 	} else {
 		param.logger.print(totalSize.toString());
 	}
@@ -201,15 +202,17 @@ function sizeOfAssets(param: StatSizeParameterObject, sizeResult: SizeResult): P
 				return fileSize(path.join(param.basepath, asset.path + ".ogg"))
 					.then(
 						size => { sizeResult.oggAudioSize += size; },
-						() => { if (!param.raw) param.logger.warn(asset + ".ogg, No such file."); })
+						() => { if (!param.raw) param.logger.warn(asset.path + ".ogg, No such file."); })
+
 					.then(() => fileSize(path.join(param.basepath, asset.path + ".mp4")))
 					.then(
 						size => { sizeResult.mp4AudioSize += size; },
-						() => {if (!param.raw) param.logger.warn(asset + ".aac, No such file."); })
+						() => {if (!param.raw) param.logger.warn(asset.path + ".mp4, No such file."); })
+
 					.then(() => fileSize(path.join(param.basepath, asset.path + ".aac")))
 					.then(
 						size => { sizeResult.aacAudioSize += size; },
-						() => {if (!param.raw) param.logger.warn(asset + ".mp4, No such file."); });
+						() => {/* .aacファイルは存在すれば対応するが、deprecatedなのでファイルが存在しない場合でも警告を表示しない */});
 			default:
 				throw new Error(`${asset.type} is not a valid asset type name`);
 		}
